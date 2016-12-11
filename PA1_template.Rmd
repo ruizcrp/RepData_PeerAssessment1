@@ -1,25 +1,140 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Assignment1"
 ---
+##Loading and preprocessing the data
+First of all the library knitr has to be loaded and echo has to be set to true throughout this assignment.
+
+Then I set my working directory to where my data is. 
+
+Afterwards the data is loaded in.
+
+But date has to be converted into a date-format.
+```{R}
+library(knitr)
+opts_chunk$set(echo = TRUE)
+
+setwd("C:/Users/CRP/Dropbox/DataScience/ReproduceData/Ass1/")
+data<-read.csv("activity.csv")
 
 
-## Loading and preprocessing the data
+data$date<- strptime(data$date, format = "%Y-%m-%d") 
+
+#just checking if everything is OK
+head(data)
+str(data$date)
+
+```
+
+##What is mean total number of steps taken per day?
+First, the steps per day are created through the aggregate function.
+
+Then a histogram is shown.
+
+And lastly the question of the mean and the median is answered.
+
+```{R}
+
+steps_per_day<-aggregate(list(steps=data$steps),by=list(day=cut(data$date, "1 day")),sum)
+
+
+hist(steps_per_day[,2],breaks=20,main="Histogram of steps per day",xlab="Steps per day")
+
+mean_steps_per_day<-mean(steps_per_day[,2],na.rm=TRUE)
+mean_steps_per_day
+median_steps_per_day<-median(steps_per_day[,2],na.rm=TRUE)
+median_steps_per_day
+
+```
+Thus the mean is 10788.19 and the median is `r median_steps_per_day`.
+
+##What is the average daily activity pattern?
+
+The following code creates first a variable with all the average steps in the respective intervals.
+
+Then the plot is shown.
+
+In the end the interval with the highest amount of steps is calculated.
+
+```{R}
+
+interval_mean<-aggregate(list(steps=data$steps),by=list(interval=data$interval),mean,na.rm=TRUE)
 
 
 
-## What is mean total number of steps taken per day?
+plot(interval_mean[,1],interval_mean[,2],type="l")
+
+interval_mean[which.max(interval_mean[,2]),]
+
+```
+The answer for the question is that the interval 835 has the highest amount of steps (206.17).
+
+##Imputing missing values
+
+First of all the number of missing values is calculated and reported.
+
+Then a methodology for the imputation of the missing values is created. Actually I see there two different strategies. On the one hand, one could impute by average value of that particular day. On the other hand, one could impute by the average value of the particular interval. The chosen approach is based on average intervals as this might make more sense.
+
+```{R}
+nrow(data) - nrow(na.omit(data))
+#The number of rows with missing values is 2304
+
+#first a logical vector is created
+lv<-is.na(data$steps)
+#just checking
+sum(lv)
+
+#then tapply is used to get the average for every interval
+mean_interval <- tapply(data$steps, data$interval, mean, na.rm=TRUE, simplify=TRUE)
+
+#then the data is saved into an alternative data in order to preserve the old data
+alternative_data<-data
+
+#then the missing values are overwritten with the averages for the respective intervals
+alternative_data$steps[lv] <- mean_interval[as.character(data$interval[lv])]
 
 
 
-## What is the average daily activity pattern?
+#Did missing values disappear?
+check<-is.na(alternative_data$steps)
+sum(check)
+
+#first the steps per day have to be recalculated
+alt_steps_per_day<-aggregate(list(steps=alternative_data$steps),by=list(day=cut(alternative_data$date, "1 day")),sum)
+
+#now a histogram is created
+hist(alt_steps_per_day[,2],breaks=20,main="Histogram of steps per day(new figure)",xlab="Steps per day")
+
+#and the mean and median are calculated again
+alt_mean_steps_per_day<-mean(alt_steps_per_day[,2],na.rm=TRUE)
+alt_mean_steps_per_day
+alt_median_steps_per_day<-median(alt_steps_per_day[,2],na.rm=TRUE)
+alt_median_steps_per_day
+
+
+```
+Thus under this alternative model, both, mean and median are at 10766.19.
+
+##Are there differences in activity patterns between weekdays and weekends?
+
+Here a variable is first created that distinguishes weekdays and weekend-days. This variable is then converted to a factor-variable because it is demanded in the task. However, it would also work without being a factor variable.
+
+Then the plot is drawn showing two lines: blue for weekdays and red for weekend-days.
+
+```{R}
+
+temp_wd<-weekdays(data$date)
+data$bin_weekday<-TRUE
+data$bin_weekday[temp_wd=="Saturday"|temp_wd=="Sunday"]<-FALSE
+
+data$bin_weekday<-as.factor(data$bin_weekday)
+
+interval_mean_wd<-aggregate(list(steps=data$steps),by=list(interval=data$interval,weekday=data$bin_weekday),mean,na.rm=TRUE)
 
 
 
-## Imputing missing values
+plot(interval_mean_wd[interval_mean_wd[,2]==TRUE,1],interval_mean_wd[interval_mean_wd[,2]==TRUE,3],type="l",col="blue",main="Average steps per interval by weekdays or weekend-days",xlab="Interval",ylab="average steps")
+lines(interval_mean_wd[interval_mean_wd[,2]==FALSE,1],interval_mean_wd[interval_mean_wd[,2]==FALSE,3],col="red")
+legend("topright", legend = c("weekday", "weekend-day"),col = c("blue","red"),lty = 1,cex = 0.7)
 
 
-
-## Are there differences in activity patterns between weekdays and weekends?
+```
